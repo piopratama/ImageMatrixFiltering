@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <!--+PIO 2020-06-26 boring stuff but let's do this-->
+    <link rel="stylesheet" href="./css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h3 class="text-center">Filtering</h3>
+        <p class="text-center">by I Wayan Pio Pratama (1829101040)</p>
+        <hr>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="">Input Row</label>
+                    <input type="text" name="" id="inputWidth" class="form-control" value="10">
+                </div>
+                <div class="form-group">
+                    <label for="">Input Column</label>
+                    <input type="text" name="" id="inputHeight" class="form-control" value="8">
+                </div>
+                <button type="button" name="" id="btnCreateInput" class="btn btn-primary" btn-lg btn-block">Create</button>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="">Filtering Type</label>
+                    <select class="form-control" id="filterType">
+                        <option value="0">Median Filter</option>
+                        <option value="1">Mean Filter</option>
+                        <option value="2">Robert Cross</option>
+                        <option value="3">Gradient Filtering</option>
+                        <option value="4">Sobel Filtering</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="">Input Row Kernel</label>
+                    <input type="text" name="" id="inputKernelWidth" class="form-control" value="3">
+                </div>
+                <div class="form-group">
+                    <label for="">Input Column Kernel</label>
+                    <input type="text" name="" id="inputKernelHeight" class="form-control" value="3">
+                </div>
+                <button type="button" name="" id="btnCreateKernel" class="btn btn-primary" btn-lg btn-block">Create</button>
+            </div>
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label for="" id="maskLabel">Mask</label>
+                    <div class="table myKernelTable1">
+
+                    </div>
+                    <div class="table myKernelTable2">
+
+                    </div>
+                    <button type="button" name="" id="btnProcess" class="btn btn-primary" btn-lg btn-block">Process</button>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-12">
+                <h3>Input Matrix</h3>
+                <div class="table myInputTable">
+                    
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                <h3>Output Matrix</h3>
+                <div class="table myOutputTable">
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./js/jquery-3.5.1.min.js"></script>
+    <script src="./js/bootstrap.min.js"></script>
+    <script>
+        $(document).ready(function(){
+            var STATE=0;
+            var img=[[220, 120, 67, 1, 4, 53, 67, 65, 240, 100],
+                    [3, 56, 90, 12, 56, 2, 120, 34, 123, 76],
+                    [7, 78, 22, 10, 8, 87, 77, 23, 54, 56],
+                    [89, 235, 50, 5, 2, 76, 23, 65, 86, 24],
+                    [34, 80, 90, 56, 78, 234, 0, 76, 234, 87],
+                    [68, 100, 65, 34, 34, 35, 78, 34, 7, 4],
+                    [89, 56, 76, 56, 87, 78, 67, 87, 31, 34],
+                    [23, 23, 2, 0, 23, 76, 32, 97, 87, 0]];
+
+            //var img=[[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]];
+            var input_width=img[0].length;
+            var input_height=img.length;
+            var kernel_width=3;
+            var kernel_height=3;
+
+            var robertCrossMaskX=[[1,0],[0,-1]];
+            var robertCrossMaskY=[[0,1],[-1,0]];
+            var gradientMaskX=[[-1,1],[-1,1]];
+            var gradientMaskY=[[-1,-1],[1,1]];
+            var sobelMaskX=[[1,0,-1],[2,0,-2],[1,0,-1]];
+            var sobelMaskY=[[1,2,1],[0,0,0],[-1,-2,-1]];
+
+            //1: for median filtering
+            //2: for mean filtering
+            //3: for robert cross
+            //4: for gradient filter
+            //5: for sobel gradient
+            var MODE=1
+            
+            $("#btnProcess").click(function(){
+                if(STATE==2){
+                    //console.log(gradientMaskX);
+                    //+PIO 2020-06-27 get input mode filtering
+                    var filterType=parseInt($("#filterType").val());
+                    
+                    MODE=filterType+1;
+                    if(MODE==3){
+                        kernel_width=robertCrossMaskX[0].length;
+                        kernel_height=robertCrossMaskX.length;
+                    }
+                    else if(MODE==4){
+                        //console.log(gradientMaskX);
+                        kernel_width=gradientMaskX[0].length;
+                        kernel_height=gradientMaskX.length;
+                    }
+                    else if(MODE==5){
+                        kernel_width=sobelMaskX[0].length;
+                        kernel_height=sobelMaskX.length;
+                    }
+
+                    //+PIO 2020-06-27 get input matrix
+                    var columnInput=parseInt($("#inputWidth").val());
+                    var rowInput=parseInt($("#inputHeight").val());
+
+                    input_width=columnInput;
+                    input_height=rowInput;
+
+                    var row=0;
+                    var col=0;
+                    img=[];
+                    var imgTemp=[];
+                    $(".imgInput").each(function(){
+                        imgTemp.push(parseInt($(this).val()));
+                        col=col+1;
+                        if(col%columnInput==0){
+                            row=row+1;
+                            col=0;
+                            img.push(imgTemp);
+                            imgTemp=[];
+                        }
+                    });
+                    
+                    //get kernel size
+                    kernel_width=parseInt($("#inputKernelWidth").val());
+                    kernel_height=parseInt($("#inputKernelHeight").val());
+
+                    //get mask if mode is 3,4,5
+                    if(MODE==3){
+                        row=0;
+                        col=0;
+                        robertCrossMaskX=[];
+                        var robertCrossMaskX_temp=[];
+                        $(".kernelInput").each(function(){
+                            robertCrossMaskX_temp.push(parseInt($(this).val()));
+                            col=col+1;
+                            if(col%kernel_width==0){
+                                row=row+1;
+                                col=0;
+                                robertCrossMaskX.push(robertCrossMaskX_temp);
+                                robertCrossMaskX_temp=[];
+                            }
+                        });
+
+                        row=0;
+                        col=0;
+                        robertCrossMaskY=[];
+                        var robertCrossMaskY_temp=[];
+                        $(".kernelInput2").each(function(){
+                            robertCrossMaskY_temp.push(parseInt($(this).val()));
+                            col=col+1;
+                            if(col%kernel_width==0){
+                                row=row+1;
+                                col=0;
+                                robertCrossMaskY.push(robertCrossMaskY_temp);
+                                robertCrossMaskY_temp=[];
+                            }
+                        });
+                    }
+                    else if(MODE==4){
+                        row=0;
+                        col=0;
+                        gradientMaskX=[];
+                        var gradientMaskX_temp=[];
+                        $(".kernelInput").each(function(){
+                            gradientMaskX_temp.push(parseInt($(this).val()));
+                            col=col+1;
+                            if(col%kernel_width==0){
+                                row=row+1;
+                                col=0;
+                                gradientMaskX.push(gradientMaskX_temp);
+                                gradientMaskX_temp=[];
+                            }
+                        });
+
+                        row=0;
+                        col=0;
+                        gradientMaskY=[];
+                        var gradientMaskY_temp=[];
+                        $(".kernelInput2").each(function(){
+                            gradientMaskY_temp.push(parseInt($(this).val()));
+                            col=col+1;
+                            if(col%kernel_width==0){
+                                row=row+1;
+                                col=0;
+                                gradientMaskY.push(gradientMaskY_temp);
+                                gradientMaskY_temp=[];
+                            }
+                        });
+                    }
+                    else if(MODE==5){
+                        row=0;
+                        col=0;
+                        sobelMaskX=[];
+                        var sobelMaskX_temp=[];
+                        $(".kernelInput").each(function(){
+                            sobelMaskX_temp.push(parseInt($(this).val()));
+                            col=col+1;
+                            if(col%kernel_width==0){
+                                row=row+1;
+                                col=0;
+                                sobelMaskX.push(sobelMaskX_temp);
+                                sobelMaskX_temp=[];
+                            }
+                        });
+
+                        row=0;
+                        col=0;
+                        sobelMaskY=[];
+                        var sobelMaskY_temp=[];
+                        $(".kernelInput2").each(function(){
+                            sobelMaskY_temp.push(parseInt($(this).val()));
+                            col=col+1;
+                            if(col%kernel_width==0){
+                                row=row+1;
+                                col=0;
+                                sobelMaskY.push(sobelMaskY_temp);
+                                sobelMaskY_temp=[];
+                            }
+                        });
+                    }
+
+                    PPFilter();
+                }
+                else{
+                    alert("Please create kernel and input");
+                }
+            });
+
+            $("#filterType").change(function(){
+                $("#inputKernelWidth").val("3");
+                $("#inputKernelHeight").val("3");
+                $("#inputKernelWidth").prop("disabled", false);
+                $("#inputKernelHeight").prop("disabled", false);
+                var filterType=parseInt($(this).val());
+                if(filterType==2 || filterType==3){
+                    $("#inputKernelWidth").val("2");
+                    $("#inputKernelHeight").val("2");
+                    $("#inputKernelWidth").attr("disabled", true);
+                    $("#inputKernelHeight").attr("disabled", true);
+                }
+                else if(filterType==4){
+                    $("#inputKernelWidth").val("3");
+                    $("#inputKernelHeight").val("3");
+                    $("#inputKernelWidth").attr("disabled", true);
+                    $("#inputKernelHeight").attr("disabled", true);
+                }
+            });
+
+            $("#btnCreateKernel").click(function(){
+                if(STATE>=1){
+                    STATE=2;
+                    if($("#inputWidth").val()!="" && $("#inputHeight").val()!=""){
+                        var columnInput=parseInt($("#inputKernelWidth").val());
+                        var rowInput=parseInt($("#inputKernelHeight").val());
+                        var filterType=parseInt($("#filterType").val());
+
+                        var input_table_html="";
+                        var input_table_html2="";
+                        if(filterType==0 || filterType==1){
+                            for(var i=0;i<rowInput;i++){
+                                input_table_html=input_table_html+"<tr>";
+                                for(var j=0;j<columnInput;j++){
+                                    input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='-' readonly disabled></td>";
+                                }
+                                input_table_html=input_table_html+"</tr>";
+                            }         
+                            $(".myKernelTable1").html(input_table_html); 
+                            $(".myKernelTable2").html("");              
+                        }
+                        else if(filterType==2){
+                            input_table_html=input_table_html+"<tr>";
+                            input_table_html=input_table_html+"<td>Gx</td>";
+                            input_table_html=input_table_html+"</tr>";
+                            input_table_html=input_table_html+"<tr>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='1' disabled></td>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='0' disabled></td>";
+                            input_table_html=input_table_html+"</tr>";
+                            input_table_html=input_table_html+"<tr>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='0' disabled></td>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='-1' disabled></td>";
+                            input_table_html=input_table_html+"</tr>";
+                            
+                            input_table_html2=input_table_html2+"<tr>";
+                            input_table_html2=input_table_html2+"<td>Gy</td>";
+                            input_table_html2=input_table_html2+"</tr>";
+                            input_table_html2=input_table_html2+"<tr>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='0' disabled></td>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='1' disabled></td>";
+                            input_table_html2=input_table_html2+"</tr>";
+                            input_table_html2=input_table_html2+"<tr>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='-1' disabled></td>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='0' disabled></td>";
+                            input_table_html2=input_table_html2+"</tr>";
+                            $(".myKernelTable1").html(input_table_html);
+                            $(".myKernelTable2").html(input_table_html2);
+                        }
+                        else if(filterType==3){
+                            input_table_html=input_table_html+"<tr>";
+                            input_table_html=input_table_html+"<td>Gx</td>";
+                            input_table_html=input_table_html+"</tr>";
+                            input_table_html=input_table_html+"<tr>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='-1'></td>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='1'></td>";
+                            input_table_html=input_table_html+"</tr>";
+                            input_table_html=input_table_html+"<tr>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='-1'></td>";
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='1'></td>";
+                            input_table_html=input_table_html+"</tr>";
+                            
+                            input_table_html2=input_table_html2+"<tr>";
+                            input_table_html2=input_table_html2+"<td>Gy</td>";
+                            input_table_html2=input_table_html2+"</tr>";
+                            input_table_html2=input_table_html2+"<tr>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='-1'></td>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='-1'></td>";
+                            input_table_html2=input_table_html2+"</tr>";
+                            input_table_html2=input_table_html2+"<tr>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='1'></td>";
+                            input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='1'></td>";
+                            input_table_html2=input_table_html2+"</tr>";
+                            $(".myKernelTable1").html(input_table_html);
+                            $(".myKernelTable2").html(input_table_html2);
+                        }
+                        else if(filterType==4){
+                            input_table_html=input_table_html+"<tr>";
+                                input_table_html=input_table_html+"<td>Gx</td>";
+                                input_table_html=input_table_html+"</tr>";
+                                input_table_html=input_table_html+"<tr>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='1'></td>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='0'></td>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='-1'></td>";
+                                input_table_html=input_table_html+"</tr>";
+                                input_table_html=input_table_html+"<tr>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='2'></td>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='0'></td>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='-2'></td>";
+                                input_table_html=input_table_html+"</tr>";
+                                input_table_html=input_table_html+"<tr>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='1'></td>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='0'></td>";
+                                input_table_html=input_table_html+"<td><input type='number' class='form-control kernelInput' value='-1'></td>";
+                                input_table_html=input_table_html+"</tr>";
+                                
+                                input_table_html2=input_table_html2+"<tr>";
+                                input_table_html2=input_table_html2+"<td>Gy</td>";
+                                input_table_html2=input_table_html2+"</tr>";
+                                input_table_html2=input_table_html2+"<tr>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='1'></td>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='2'></td>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='1'></td>";
+                                input_table_html2=input_table_html2+"</tr>";
+                                input_table_html2=input_table_html2+"<tr>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='0'></td>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='0'></td>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='0'></td>";
+                                input_table_html2=input_table_html2+"</tr>";
+                                input_table_html2=input_table_html2+"<tr>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='-1'></td>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='-2'></td>";
+                                input_table_html2=input_table_html2+"<td><input type='number' class='form-control kernelInput2' value='-1'></td>";
+                                input_table_html2=input_table_html2+"</tr>";
+                                $(".myKernelTable1").html(input_table_html);
+                                $(".myKernelTable2").html(input_table_html2);
+                        }
+                        
+                    }
+                    else{
+                        alert("Please input column and row kernel");
+                    }
+                }
+                else{
+                    alert("Please create input first");
+                }
+            });
+
+            $("#btnCreateInput").click(function(){
+                if($("#inputWidth").val()!="" && $("#inputHeight").val()!=""){
+                    if(STATE<1){
+                        STATE=1;
+                    }
+                    var columnInput=parseInt($("#inputWidth").val());
+                    var rowInput=parseInt($("#inputHeight").val());
+                    
+                    var input_table_html="";
+                    for(var i=0;i<rowInput;i++){
+                        input_table_html=input_table_html+"<tr>";
+                        for(var j=0;j<columnInput;j++){
+                            input_table_html=input_table_html+"<td><input type='number' class='form-control imgInput' value='"+img[i][j]+"'></td>";
+                        }
+                        input_table_html=input_table_html+"</tr>";
+                    }
+                    $(".myInputTable").html(input_table_html);
+                }
+                else{
+                    alert("Please input column and row");
+                }
+            });
+
+            function PPFilter(){
+                //+PIO 2020-06-24 how do we know how many step the kernel take?
+                //let's think when it will stop. Ok it will stop if only the index step is equal to input width-kernel width
+                //or input height-kernel height
+                
+                //+-PIO 2020-06-25 ok i start to change my mind here
+                /*//now we will copy array img by value since = operator will make JS think the array will copy by reference
+                //to do this use slice method
+
+                var output=img.slice();*/
+                var output_temp=[];
+                var output=[];
+                //console.log(img);
+                
+                if(input_width>=kernel_width && input_height>=kernel_height){
+                    for(var y=0;y<=(input_height-kernel_height);y++){
+                        for(var x=0;x<=(input_width-kernel_width);x++){
+                            //console.log(input_width-kernel_width);
+                            //now let's do the calculation
+                            var temp=[];
+
+                            //+-PIO 2020-06-25 flattening the array to make the calculation easier
+                            for(var i=0;i<kernel_height;i++){
+                                for(var j=0;j<kernel_width;j++){
+                                    temp.push(img[y+i][x+j]);
+                                }
+                            }
+                            //console.log(temp);
+                            if(MODE==1){
+                                var med=medianCalculation(temp);
+                                output_temp.push(med);
+                            }
+                            else if(MODE==2){
+                                var avg=averageCalculation(temp);
+                                output_temp.push(avg);
+                            }
+                            else if(MODE==3){
+                                var result=MyFilterMask(temp, robertCrossMaskX, robertCrossMaskY);
+                                output_temp.push(result);
+                            }
+                            else if(MODE==4){
+                                var result=MyFilterMask(temp, gradientMaskX, gradientMaskY);
+                                output_temp.push(result);
+                            }
+                            else if(MODE==5){
+                                var result=MyFilterMask(temp, sobelMaskX, sobelMaskY);
+                                output_temp.push(result);
+                            }
+                            
+                        }
+                        output.push(output_temp);
+                        output_temp=[];
+                    }
+
+                    //console.log(output);
+                    //+PIO 2020-06-27 let's print the result
+                    var output_table_html="";
+                    for(var i=0;i<output.length;i++){
+                        output_table_html=output_table_html+"<tr>";
+                        for(var j=0;j<output[i].length;j++){
+                            output_table_html=output_table_html+"<td><input type='number' class='form-control' value='"+output[i][j]+"' readonly disabled></td>";
+                        }
+                        output_table_html=output_table_html+"</tr>";
+                    }         
+                    $(".myOutputTable").html(output_table_html);
+                }
+                else{
+                    alert("Please add kernel size that lower than input size");
+                }
+            }
+
+            function medianCalculation(temp){
+                //ok get median now and start to remember senior high school formula
+                //sort the array first
+                //ok sort in js will do it alphabetically, so we need to do it implicitly 
+                //temp.sort();
+                temp.sort(function(a, b) { return a > b ? 1 : -1});
+                //do for even or odd data
+                var temp_length=temp.length;
+                if(temp_length%2==0){
+                    //do the even formula here
+                    //-1 in the formula because the effect of array index that start from 0
+                    var med_pos=Math.floor(temp_length/2.0)-1;
+                    var med=Math.round((temp[med_pos]+temp[med_pos+1])/2.0);
+                }
+                else{
+                    //do med for odd data
+                    //round to floor because array index start from 0
+                    var med_pos=Math.floor(temp_length/2.0);
+                    var med=temp[med_pos];
+                }
+                //console.log(temp);
+                //console.log(med);
+                //ok now set the value
+                return med;
+            }
+
+            function averageCalculation(temp){
+                //nothing special here just sum it up and devide by the number of data
+                var sum=0;
+                var temp_length=temp.length;
+                for(i=0;i<temp.length;i++){
+                    sum=sum+temp[i];
+                }
+
+                var avg=Math.round(sum/temp_length);
+                return avg;
+            }
+
+            function MyFilterMask(temp, maskX, maskY){
+                //+PIO 2020-06-26 ok here we can use the same function for robertcross, gradient and sobel
+                //the different is only the mask that we use
+
+                //now do multiplication each temp element and mask then sum it all
+                var Gx;
+                var sum=0;
+                var k=0;
+                for(var i=0;i<maskX.length;i++){
+                    for(var j=0;j<maskX[0].length;j++){
+                        sum=sum+maskX[i][j]*temp[k];
+                        k=k+1;
+                    }
+                }
+                Gx=sum;
+                sum=0;
+                k=0;
+                for(var i=0;i<maskX.length;i++){
+                    for(var j=0;j<maskX[0].length;j++){
+                        sum=sum+maskY[i][j]*temp[k];
+                        k=k+1;
+                    }
+                }
+                Gy=sum;
+
+                //then we calculate the magnitude
+                var magnitude=Math.round(Math.sqrt(Gx*Gx+Gy*Gy));
+
+                return magnitude;
+            }
+
+            //PPFilter();
+        })
+    </script>
+</body>
+</html>
